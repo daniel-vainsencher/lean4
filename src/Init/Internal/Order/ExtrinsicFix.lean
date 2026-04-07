@@ -93,20 +93,4 @@ theorem extrinsicFix_eq [inst : CCPO α] {f : α → α}
   simp only [extrinsicFix, dif_pos h]
   exact @fix_eq α h.choose f h.choose_spec
 
-/--
-Fixpoint induction for `extrinsicFix`: an admissible predicate holds for `extrinsicFix f`
-if it is preserved by `f`.
-
-The admissibility hypothesis is universally quantified over all CCPO instances because
-`extrinsicFix` uses classical choice to select a CCPO, which may differ from the caller's
-instance.
--/
-theorem extrinsicFix_induct [inst : CCPO α] {f : α → α}
-    (hf : monotone f)
-    (motive : α → Prop) (hadm : ∀ (inst' : CCPO α), @admissible α inst' motive)
-    (h : ∀ x, motive x → motive (f x)) : motive (extrinsicFix f) := by
-  have hex : ∃ inst' : CCPO α, (letI := inst'; monotone f) := ⟨inst, hf⟩
-  simp only [extrinsicFix, dif_pos hex]
-  exact @fix_induct α hex.choose f hex.choose_spec motive (hadm hex.choose) h
-
 end Lean.Order

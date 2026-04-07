@@ -1,7 +1,7 @@
 /-
 Copyright (c) 2026 Lean FRO, LLC. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Sebastian Graf
+Authors: Sebastian Graf, Robin Arnez
 -/
 module
 
@@ -26,9 +26,6 @@ Given a CCPO and monotonicity proof, there are theorems guaranteeing that it equ
 public section
 
 namespace Lean.Order
-
-/-- Every CCPO has at least one element (the bottom element). -/
-noncomputable scoped instance CCPO.instNonempty [CCPO α] : Nonempty α := ⟨bot⟩
 
 /--
 The function implemented as the loop {lean}`opaqueFix f = f (opaqueFix f)`.
@@ -82,9 +79,8 @@ properties about it.
 -/
 add_decl_doc extrinsicFix
 
-section theorems
-
-attribute [local instance] CCPO.instNonempty
+/-- Every CCPO has at least one element (the bottom element). -/
+noncomputable local instance CCPO.instNonempty [CCPO α] : Nonempty α := ⟨bot⟩
 
 /--
 The fixpoint equation for `extrinsicFix`: given a CCPO instance and monotonicity of `f`,
@@ -112,7 +108,5 @@ theorem extrinsicFix_induct [inst : CCPO α] {f : α → α}
   have hex : ∃ inst' : CCPO α, (letI := inst'; monotone f) := ⟨inst, hf⟩
   simp only [extrinsicFix, dif_pos hex]
   exact @fix_induct α hex.choose f hex.choose_spec motive (hadm hex.choose) h
-
-end theorems
 
 end Lean.Order

@@ -10,7 +10,7 @@ public import Std.Do.Triple.Basic
 public import Init.Data.Range.Polymorphic.Iterators
 import Init.Data.Range.Polymorphic
 public import Init.Data.Slice.Array
-public import Init.Repeat
+public import Init.While
 
 -- This public import is a workaround for #10652.
 -- Without it, adding the `spec` attribute for `instMonadLiftTOfMonadLift` will fail.

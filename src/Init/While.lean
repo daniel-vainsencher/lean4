@@ -7,6 +7,7 @@ module
 
 prelude
 public import Init.Core
+public import Init.Internal.Order.ExtrinsicFix
 
 public section
 
@@ -21,22 +22,39 @@ namespace Lean
 inductive Loop where
   | mk
 
+open Lean.Order in
 @[inline]
-partial def Loop.forIn {β : Type u} {m : Type u → Type v} [Monad m] (_ : Loop) (init : β) (f : Unit → β → m (ForInStep β)) : m β :=
-  let rec @[specialize] loop (b : β) : m β := do
+def Loop.forIn {β : Type u} {m : Type u → Type v} [Monad m]
+    (_ : Loop) (init : β) (f : Unit → β → m (ForInStep β)) : m β :=
+  haveI : Nonempty (β → m β) := ⟨fun b => pure b⟩
+  Lean.Order.extrinsicFix (fun (cont : β → m β) (b : β) => do
     match ← f () b with
-      | ForInStep.done b  => pure b
-      | ForInStep.yield b => loop b
-  loop init
+    | .done val => pure val
+    | .yield val => cont val) init
 
 instance [Monad m] : ForIn m Loop Unit where
   forIn := Loop.forIn
 
+open Lean.Order in
+theorem Loop.forIn_eq [Monad m] [MonadTail m]
+    {l : Loop} {b : β} {f : Unit → β → m (ForInStep β)} :
+    Loop.forIn l b f = (do
+      match ← f () b with
+      | .done val => pure val
+      | .yield val => Loop.forIn l val f) := by
+  haveI : Nonempty β := ⟨b⟩
+  simp only [Loop.forIn]
+  apply congrFun
+  apply extrinsicFix_eq
+  intro cont₁ cont₂ h b'
+  apply MonadTail.bind_mono_right
+  intro r
+  cases r with
+  | done => exact PartialOrder.rel_refl
+  | yield val => exact h val
+
 syntax (name := doRepeat) "repeat " doSeq : doElem
 
-/-- Bootstrapping fallback macro for `repeat`.
-Expands to `for _ in Loop.mk do ...`. Overridden by the macro in `Init.Repeat` after
-bootstrapping. -/
 macro_rules
   | `(doElem| repeat $seq) => `(doElem| for _ in Loop.mk do $seq)
 

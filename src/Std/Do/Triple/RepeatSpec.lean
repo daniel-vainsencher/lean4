@@ -16,15 +16,15 @@ set_option linter.missingDocs true
 namespace Std.Do
 
 /-!
-# Specification theorem for `Repeat` loops
+# Specification theorem for `Loop`-based `repeat`/`while` loops
 
-This file contains the `@[spec]` theorem for `forIn` over `Lean.Repeat`, which enables
+This file contains the `@[spec]` theorem for `forIn` over `Lean.Loop`, which enables
 verified reasoning about `repeat`/`while` loops using `mvcgen`.
 -/
 
 set_option mvcgen.warning false
 
-/-- A variant (termination measure) for a `Repeat`/`while` loop. -/
+/-- A variant (termination measure) for a `repeat`/`while` loop. -/
 @[spec_invariant_type]
 abbrev RepeatVariant (β : Type u) (ps : PostShape.{u}) := β → SVal ps.args (ULift Nat)
 
@@ -32,7 +32,7 @@ set_option linter.missingDocs false in
 abbrev RepeatVariant.eval {β ps} (variant : RepeatVariant β ps) (b : β) (n : Nat) :=
   SPred.evalsTo (variant b) ⟨n⟩
 
-/-- An invariant for a `Repeat`/`while` loop. -/
+/-- An invariant for a `repeat`/`while` loop. -/
 @[spec_invariant_type]
 abbrev RepeatInvariant β ps := PostCond (Bool × β) ps
 
@@ -64,8 +64,8 @@ variable {β : Type u} {m : Type u → Type v} {ps : PostShape.{u}}
 variable [Monad m] [Lean.Order.MonadTail m] [WPMonad m ps]
 
 @[spec]
-theorem Spec.forIn_repeat
-    {l : _root_.Lean.Repeat} {init : β} {f : Unit → β → m (ForInStep β)}
+theorem Spec.forIn_loop
+    {l : _root_.Lean.Loop} {init : β} {f : Unit → β → m (ForInStep β)}
     (measure : RepeatVariant β ps)
     (inv : RepeatInvariant β ps)
     (step : ∀ b mb,
@@ -82,7 +82,7 @@ theorem Spec.forIn_repeat
   intro minit
   induction minit using Nat.strongRecOn generalizing init with
   | _ minit ih =>
-  rw [_root_.Lean.Repeat.forIn.eq_1]
+  rw [_root_.Lean.Loop.forIn_eq]
   mvcgen [step, ih] with
   | vc2 =>
     mrename_i h

@@ -2189,5 +2189,3 @@ theorem Spec.forIn_stringSlice
       next => apply Triple.pure; simp
       next b => simp [ih _ _ hsp.next]
   | endPos => simpa using Triple.pure _ (by simp)
-
-

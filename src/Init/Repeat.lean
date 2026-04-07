@@ -8,7 +8,7 @@ module
 prelude
 public import Init.Core
 public import Init.Internal.Order.MonadTail
-import Init.While
+public import Init.While
 
 set_option linter.missingDocs true
 
@@ -42,10 +42,11 @@ partial_fixpoint
 instance [Monad m] [Lean.Order.MonadTail m] : ForIn m Repeat Unit where
   forIn _ init f := haveI : Nonempty _ := ⟨init⟩; Repeat.forIn init f
 
+/-- Fallback instance for monads without `MonadTail`. Delegates to `Loop.forIn` (partial). -/
+instance (priority := low) [Monad m] : ForIn m Repeat Unit where
+  forIn _ init f := Loop.forIn Loop.mk init f
+
 macro_rules
-  | `(doElem| repeat $seq) => do
-    if ← Macro.hasDecl `Lean.Elab.Do.elabDoRepeat then
-      Lean.Macro.throwUnsupported
-    `(doElem| for _ in Repeat.mk do $seq)
+  | `(doElem| repeat $seq) => `(doElem| for _ in Repeat.mk do $seq)
 
 end Lean

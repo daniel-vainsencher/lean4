@@ -202,6 +202,18 @@ theorem evalsTo_cons {f : σ → SVal σs α} {a : α} {s : σ} :
 @[simp, grind =] theorem evalsTo_2 {f : SVal [σ₁, σ₂] α} {a : α} {s₁ : σ₁} {s₂ : σ₂} :
     evalsTo f a s₁ s₂ = evalsTo (f s₁ s₂) a := rfl
 
+@[simp, grind =] theorem evalsTo_3 {f : SVal [σ₁, σ₂, σ₃] α} {a : α}
+    {s₁ : σ₁} {s₂ : σ₂} {s₃ : σ₃} :
+    evalsTo f a s₁ s₂ s₃ = evalsTo (f s₁ s₂ s₃) a := rfl
+
+@[simp, grind =] theorem evalsTo_4 {f : SVal [σ₁, σ₂, σ₃, σ₄] α} {a : α}
+    {s₁ : σ₁} {s₂ : σ₂} {s₃ : σ₃} {s₄ : σ₄} :
+    evalsTo f a s₁ s₂ s₃ s₄ = evalsTo (f s₁ s₂ s₃ s₄) a := rfl
+
+@[simp, grind =] theorem evalsTo_5 {f : SVal [σ₁, σ₂, σ₃, σ₄, σ₅] α} {a : α}
+    {s₁ : σ₁} {s₂ : σ₂} {s₃ : σ₃} {s₄ : σ₄} {s₅ : σ₅} :
+    evalsTo f a s₁ s₂ s₃ s₄ s₅ = evalsTo (f s₁ s₂ s₃ s₄ s₅) a := rfl
+
 theorem evalsTo_total {P : SPred σs} (f : SVal σs α) :
     P ⊢ₛ ∃ m, evalsTo f m := by
   induction σs with

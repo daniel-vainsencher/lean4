@@ -112,31 +112,20 @@ example : ⦃⌜x ≤ 20⌝⦄ possiblyDivergentLoop x ⦃⇓ r => ⌜r = 20⌝�
   | inv2 => ⇓ (done, i) => ⌜i ≤ 20⌝ ∧ ⌜done = true → i = 20⌝
   with grind
 
-set_option backward.do.while true in
-/-- Test: `backward.do.while true` should expand to `Loop.mk`. -/
-def loopBackwardCompat (n : Nat) : Nat := Id.run do
-  let mut i := 0
-  repeat
-    if i < n then
-      i := i + 1
-    else
-      break
-  return i
+-- Verify that `repeat` with `MonadTail` uses `Repeat.forIn` (verifiable via `partial_fixpoint`)
+/-- info: Lean.instForInRepeatUnitOfMonadTail -/
+#guard_msgs in
+#synth ForIn Id Lean.Repeat Unit
 
--- Verify the backward-compat loop computes correctly
-#guard loopBackwardCompat 5 == 5
-#guard loopBackwardCompat 0 == 0
+-- A simple monad without `MonadTail`
+structure PlainM (α : Type u) where
+  run : α
 
-/-- Test: default setting should expand to `Repeat.mk`. -/
-def loopDefault (n : Nat) : Nat := Id.run do
-  let mut i := 0
-  repeat
-    if i < n then
-      i := i + 1
-    else
-      break
-  return i
+instance : Monad PlainM where
+  pure a := ⟨a⟩
+  bind a f := f a.run
 
--- Verify the default loop computes correctly
-#guard loopDefault 5 == 5
-#guard loopDefault 0 == 0
+-- Verify that `repeat` without `MonadTail` falls back to `Loop.forIn`-based instance (partial)
+/-- info: Lean.instForInRepeatUnitOfMonad -/
+#guard_msgs in
+#synth ForIn PlainM Lean.Repeat Unit

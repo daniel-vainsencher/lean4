@@ -698,6 +698,38 @@ theorem prod_csup_eq [CCPO α] [CCPO β] (c : α ×' β → Prop) (hchain : chai
   · apply prod_csup_is_sup
   · apply CCPO.csup_spec
 
+/-- Transport a CCPO along a bijection. The order on `β` is defined as `x ⊑ y ↔ g x ⊑ g y`. -/
+@[implicit_reducible]
+noncomputable def CCPO.ofBijection [CCPO α] (f : α → β) (g : β → α)
+    (hgf : ∀ a, g (f a) = a) (hfg : ∀ b, f (g b) = b) : CCPO β where
+  rel x y := g x ⊑ g y
+  rel_refl := PartialOrder.rel_refl
+  rel_antisymm h₁ h₂ := by
+    have h := PartialOrder.rel_antisymm h₁ h₂
+    calc _ = f (g _) := (hfg _).symm
+         _ = f (g _) := by rw [h]
+         _ = _ := hfg _
+  rel_trans h₁ h₂ := PartialOrder.rel_trans h₁ h₂
+  has_csup {c} hchain := by
+    have hchain' : chain (fun a => c (f a)) := by
+      intro a₁ a₂ h₁ h₂
+      have := hchain (f a₁) (f a₂) h₁ h₂
+      simp only [hgf] at this
+      exact this
+    obtain ⟨s, hs⟩ := CCPO.has_csup hchain'
+    refine ⟨f s, fun x => ?_⟩
+    simp only [hgf]
+    constructor
+    · intro h y hy
+      exact (hs (g x)).mp h (g y) (show c (f (g y)) by rw [hfg]; exact hy)
+    · intro h
+      exact (hs (g x)).mpr fun a' ha' => by
+        have := h (f a') ha'; simp only [hgf] at this; exact this
+
+noncomputable instance instCCPOProd {α : Type u} {β : Type v} [CCPO α] [CCPO β] : CCPO (α × β) :=
+  CCPO.ofBijection (fun (p : α ×' β) => (p.1, p.2)) (fun (p : α × β) => ⟨p.1, p.2⟩)
+    (fun ⟨_, _⟩ => rfl) (fun (_, _) => rfl)
+
 noncomputable def prod_sup [CompleteLattice α] [CompleteLattice β] (c : α ×' β → Prop) : α ×' β :=
   ⟨CompleteLattice.sup (PProd.fst c), CompleteLattice.sup (PProd.snd c)⟩
 

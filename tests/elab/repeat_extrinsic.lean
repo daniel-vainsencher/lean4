@@ -111,3 +111,16 @@ example : ⦃⌜x ≤ 20⌝⦄ possiblyDivergentLoop x ⦃⇓ r => ⌜r = 20⌝�
   | inv1 => fun i => ULift.up (20 - i)
   | inv2 => ⇓ (done, i) => ⌜i ≤ 20⌝ ∧ ⌜done = true → i = 20⌝
   with grind
+
+def terminatesSometimes (n : Nat) (p : Nat → Bool) :  Option Nat := do
+  let mut n := n
+  while !p n do
+    n := n + 2
+  return n
+
+example (n m : Nat) (h : n ≤ m) (heven : n % 2 = 0) (hmeven : m % 2 = 0) (h : p m) :
+    ⦃⌜True⌝⦄ terminatesSometimes n p ⦃⇓ r => ⌜r % 2 = 0⌝⦄ := by
+  mvcgen [terminatesSometimes] invariants
+  | inv1 => fun i => ULift.up (m + 1 - i)
+  | inv2 => ⇓ (done, i) => ⌜i % 2 = 0 ∧ i ≤ m⌝ ∧ ⌜done = true → p i⌝
+  with grind

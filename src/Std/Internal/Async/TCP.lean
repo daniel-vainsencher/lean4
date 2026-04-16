@@ -91,7 +91,7 @@ def acceptSelector (s : TCP.Socket.Server) : Selector Client :=
       let task ← s.native.accept
 
       -- If we get cancelled the promise will be dropped so prepare for that
-      IO.chainTask (t := task.result?) fun res => do
+      IO.chainTask (t := task.result?) (sync := true) fun res => do
         match res with
         | none => return ()
         | some res =>
@@ -187,31 +187,23 @@ in parallel with `recv?`.
 def recvSelector (s : TCP.Socket.Client) (size : UInt64) : Selector (Option ByteArray) :=
   {
     tryFn := do
-      let readableWaiter ← s.native.waitReadable
-
-      if ← readableWaiter.isResolved then
-        -- We know that this read should not block
-        let res ← (s.recv? size).block
-        return some res
-      else
-        s.native.cancelRecv
-        return none
+      match ← s.native.tryRecv? size with
+      | none => return none
+      | some result => return some (← IO.ofExcept result)
 
     registerFn waiter := do
-      let readableWaiter ← s.native.waitReadable
+      let recvPromise ← s.native.recv? size
 
       -- If we get cancelled the promise will be dropped so prepare for that
-      discard <| IO.mapTask (t := readableWaiter.result?) fun res => do
-        match res with
+      discard <| IO.mapTask (t := recvPromise.result?) (sync := true) fun res? => do
+        match res? with
         | none => return ()
         | some res =>
           let lose := return ()
           let win promise := do
             try
-              discard <| IO.ofExcept res
-              -- We know that this read should not block
-              let res ← (s.recv? size).block
-              promise.resolve (.ok res)
+              let data ← IO.ofExcept res
+              promise.resolve (.ok data)
             catch e =>
               promise.resolve (.error e)
           waiter.race lose win

@@ -137,6 +137,18 @@ Enables TCP keep-alive for a socket. If delay is less than 1 then UV_EINVAL is r
 @[extern "lean_uv_tcp_keepalive"]
 opaque keepAlive (socket : @& Socket) (enable : Int8) (delay : UInt32) : IO Unit
 
+/--
+Returns `true` if the socket has data immediately available for reading without consuming any bytes.
+-/
+@[extern "lean_uv_tcp_has_pending_data"]
+opaque hasPendingData (socket : @& Socket) : IO Bool
+
+/--
+Attempts a non-blocking read of up to `size` bytes.
+-/
+@[extern "lean_uv_tcp_try_recv"]
+opaque tryRecv? (socket : @& Socket) (size : UInt64) : IO (Option (Except IO.Error (Option ByteArray)))
+
 end Socket
 end TCP
 end UV

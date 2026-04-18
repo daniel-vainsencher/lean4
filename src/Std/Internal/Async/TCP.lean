@@ -192,18 +192,18 @@ def recvSelector (s : TCP.Socket.Client) (size : UInt64) : Selector (Option Byte
       | some result => return some (← IO.ofExcept result)
 
     registerFn waiter := do
-      let recvPromise ← s.native.recv? size
+      let readableWaiter ← s.native.waitReadable
 
       -- If we get cancelled the promise will be dropped so prepare for that
-      discard <| IO.mapTask (t := recvPromise.result?) (sync := true) fun res? => do
+      discard <| IO.mapTask (t := readableWaiter.result?) fun res? => do
         match res? with
         | none => return ()
         | some res =>
           let lose := return ()
           let win promise := do
             try
-              let data ← IO.ofExcept res
-              promise.resolve (.ok data)
+              discard <| IO.ofExcept res
+              IO.chainTask (← (s.recv? size).asTask) (promise.resolve ·)
             catch e =>
               promise.resolve (.error e)
           waiter.race lose win

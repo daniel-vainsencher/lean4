@@ -195,8 +195,8 @@ def recvSelector (s : TCP.Socket.Client) (size : UInt64) : Selector (Option Byte
       let readableWaiter ← s.native.waitReadable
 
       -- If we get cancelled the promise will be dropped so prepare for that
-      discard <| IO.mapTask (t := readableWaiter.result?) fun res? => do
-        match res? with
+      discard <| IO.mapTask (t := readableWaiter.result?) fun res => do
+        match res with
         | none => return ()
         | some res =>
           let lose := return ()

@@ -986,6 +986,8 @@ static inline lean_object * lean_array_fswap(lean_obj_arg a, b_lean_obj_arg i, b
 }
 
 static inline lean_object * lean_array_swap(lean_obj_arg a, b_lean_obj_arg i, b_lean_obj_arg j) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `a` (no swap).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i) || !lean_is_scalar(j)) return a;
     size_t ui = lean_unbox(i);
     size_t uj = lean_unbox(j);
@@ -1064,6 +1066,8 @@ static inline uint8_t lean_byte_array_uget(b_lean_obj_arg a, size_t i) {
     return lean_sarray_cptr(a)[i];
 }
 static inline uint8_t lean_byte_array_get(b_lean_obj_arg a, b_lean_obj_arg i) {
+    /* SLEAN-AUDIT: non-scalar branch below returns 0 without reading `a`.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (lean_is_scalar(i)) {
         size_t idx = lean_unbox(i);
         return idx < lean_sarray_size(a) ? lean_byte_array_uget(a, idx) : 0;
@@ -1088,6 +1092,8 @@ static inline lean_object * lean_byte_array_uset(lean_obj_arg a, size_t i, uint8
 }
 
 static inline lean_obj_res lean_byte_array_set(lean_obj_arg a, b_lean_obj_arg i, uint8_t b) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `a` (no write).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i)) {
         return a;
     } else {
@@ -1132,6 +1138,8 @@ static inline double lean_float_array_fget(b_lean_obj_arg a, b_lean_obj_arg i) {
 }
 
 static inline double lean_float_array_get(b_lean_obj_arg a, b_lean_obj_arg i) {
+    /* SLEAN-AUDIT: non-scalar branch below returns 0.0 without reading `a`.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (lean_is_scalar(i)) {
         size_t idx = lean_unbox(i);
         return idx < lean_sarray_size(a) ? lean_float_array_uget(a, idx) : 0.0;
@@ -1157,6 +1165,8 @@ static inline lean_obj_res lean_float_array_fset(lean_obj_arg a, b_lean_obj_arg 
 }
 
 static inline lean_obj_res lean_float_array_set(lean_obj_arg a, b_lean_obj_arg i, double d) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `a` (no write).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i)) {
         return a;
     } else {
@@ -1230,6 +1240,9 @@ static inline lean_obj_res lean_string_utf8_next_fast(b_lean_obj_arg s, b_lean_o
 LEAN_EXPORT lean_obj_res lean_string_utf8_prev(b_lean_obj_arg s, b_lean_obj_arg i);
 LEAN_EXPORT lean_obj_res lean_string_utf8_set(lean_obj_arg s, b_lean_obj_arg i, uint32_t c);
 static inline uint8_t lean_string_utf8_at_end(b_lean_obj_arg s, b_lean_obj_arg i) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `true` (treats
+     * non-scalar `i` as past end) without comparing to `s`'s size.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     return !lean_is_scalar(i) || lean_unbox(i) >= lean_string_size(s) - 1;
 }
 LEAN_EXPORT lean_obj_res lean_string_utf8_extract(b_lean_obj_arg s, b_lean_obj_arg b, b_lean_obj_arg e);

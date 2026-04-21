@@ -2179,6 +2179,8 @@ static bool lean_string_utf8_get_core(char const * str, usize size, usize i, uin
 }
 
 extern "C" LEAN_EXPORT uint32 lean_string_utf8_get(b_obj_arg s, b_obj_arg i0) {
+    /* SLEAN-AUDIT: non-scalar branch below returns the default char without
+     * reading `s`. See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i0)) {
         /* If `i0` is not a scalar, then it must be > LEAN_MAX_SMALL_NAT,
            and should not be a valid index.
@@ -2241,6 +2243,8 @@ extern "C" LEAN_EXPORT uint32_t lean_string_utf8_get_fast_cold(char const * str,
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_get_opt(b_obj_arg s, b_obj_arg i0) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `none` without reading `s`.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i0)) {
         return lean_box(0);
     }
@@ -2289,6 +2293,9 @@ extern "C" LEAN_EXPORT uint32 lean_string_utf8_get_bang(b_obj_arg s, b_obj_arg i
    ```
 */
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_next(b_obj_arg s, b_obj_arg i0) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `i + 1` unconditionally
+     * (scalar branch reads the UTF-8 leading byte and advances 1/2/3/4).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i0)) {
         /* See comment at string_utf8_get */
         return lean_nat_add(i0, lean_box(1));
@@ -2320,6 +2327,8 @@ static inline bool is_utf8_first_byte(unsigned char c) {
 }
 
 extern "C" LEAN_EXPORT uint8 lean_string_is_valid_pos(b_obj_arg s, b_obj_arg i0) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `false` without reading `s`.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i0)) {
         /* See comment at string_utf8_get */
         return false;
@@ -2364,6 +2373,9 @@ extern "C" LEAN_EXPORT obj_res lean_string_utf8_extract(b_obj_arg s, b_obj_arg b
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_prev(b_obj_arg s, b_obj_arg i0) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `i - 1` unconditionally
+     * (scalar branch scans back to the previous UTF-8 leading byte, 1-4).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i0)) {
         /* See comment at string_utf8_get */
         return lean_nat_sub(i0, lean_box(1));
@@ -2390,6 +2402,8 @@ static unsigned get_utf8_char_size_at(std::string const & s, usize i) {
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_set(obj_arg s, b_obj_arg i0, uint32 c) {
+    /* SLEAN-AUDIT: non-scalar branch below returns `s` (no write).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(i0)) {
         /* See comment at string_utf8_get */
         return s;

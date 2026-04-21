@@ -27,5 +27,65 @@ def testExtract : IO Unit := do
   IO.println s!"  extract s ⟨100⟩  ⟨200⟩        = {repr (String.Pos.Raw.extract s ⟨100⟩ ⟨200⟩)}  (scalar OOB; reference: \"\")"
   IO.println s!"  extract s ⟨2^63⟩ ⟨2^63 + 1⟩   = {repr (String.Pos.Raw.extract s ⟨2^63⟩ ⟨2^63 + 1⟩)}  (non-scalar OOB; reference: \"\")"
 
+-- Class B/C: index/position primitives whose non-scalar branch
+-- returns a hard-coded out-of-bounds default without consulting the
+-- object. Reachable here by feeding a non-scalar Nat whose value is
+-- small (via the FFI helper `boxed`).
+def testIndexPositionCluster : IO Unit := do
+  let s := "L∃∀N"  -- 8 bytes: L(1) ∃(3) ∀(3) N(1)
+  let ba : ByteArray  := ⟨#[10, 20, 30, 40]⟩
+  let fa : FloatArray := ⟨#[1.5, 2.5, 3.5, 4.5]⟩
+
+  section_ "String.Pos.Raw.next (lean_string_utf8_next)"
+  IO.println s!"  scalar @1         = {(String.Pos.Raw.next s ⟨1⟩).byteIdx}  (expected 4)"
+  IO.println s!"  boxed  @1         = {(String.Pos.Raw.next s ⟨boxed 1⟩).byteIdx}  (expected 4)"
+
+  section_ "String.Pos.Raw.prev (lean_string_utf8_prev)"
+  IO.println s!"  scalar @4         = {(String.Pos.Raw.prev s ⟨4⟩).byteIdx}  (expected 1)"
+  IO.println s!"  boxed  @4         = {(String.Pos.Raw.prev s ⟨boxed 4⟩).byteIdx}  (expected 1)"
+
+  section_ "String.Pos.Raw.get (lean_string_utf8_get)"
+  IO.println s!"  scalar @1         = {String.Pos.Raw.get s ⟨1⟩}  (expected '∃')"
+  IO.println s!"  boxed  @1         = {String.Pos.Raw.get s ⟨boxed 1⟩}  (expected '∃')"
+
+  section_ "String.Pos.Raw.get? (lean_string_utf8_get_opt)"
+  IO.println s!"  scalar @1         = {repr (String.Pos.Raw.get? s ⟨1⟩)}  (expected some '∃')"
+  IO.println s!"  boxed  @1         = {repr (String.Pos.Raw.get? s ⟨boxed 1⟩)}  (expected some '∃')"
+
+  section_ "String.Pos.Raw.isValid (lean_string_is_valid_pos)"
+  IO.println s!"  scalar @1         = {String.Pos.Raw.isValid s ⟨1⟩}  (expected true)"
+  IO.println s!"  boxed  @1         = {String.Pos.Raw.isValid s ⟨boxed 1⟩}  (expected true)"
+
+  section_ "String.Pos.Raw.atEnd (lean_string_utf8_at_end)"
+  IO.println s!"  scalar @1         = {String.Pos.Raw.atEnd s ⟨1⟩}  (expected false)"
+  IO.println s!"  boxed  @1         = {String.Pos.Raw.atEnd s ⟨boxed 1⟩}  (expected false)"
+
+  section_ "String.Pos.Raw.set (lean_string_utf8_set)"
+  let t := "abcd"
+  IO.println s!"  scalar @1 := 'Z'  = {repr (String.Pos.Raw.set t ⟨1⟩ 'Z')}  (expected \"aZcd\")"
+  IO.println s!"  boxed  @1 := 'Z'  = {repr (String.Pos.Raw.set t ⟨boxed 1⟩ 'Z')}  (expected \"aZcd\")"
+
+  section_ "ByteArray.get! (lean_byte_array_get)"
+  IO.println s!"  scalar @2         = {ba.get! 2}  (expected 30)"
+  IO.println s!"  boxed  @2         = {ba.get! (boxed 2)}  (expected 30)"
+
+  section_ "ByteArray.set! (lean_byte_array_set)"
+  IO.println s!"  scalar @2 := 99   = {(ba.set! 2 99).toList}  (expected [10,20,99,40])"
+  IO.println s!"  boxed  @2 := 99   = {(ba.set! (boxed 2) 99).toList}  (expected [10,20,99,40])"
+
+  section_ "FloatArray.get! (lean_float_array_get)"
+  IO.println s!"  scalar @2         = {fa.get! 2}  (expected 3.5)"
+  IO.println s!"  boxed  @2         = {fa.get! (boxed 2)}  (expected 3.5)"
+
+  section_ "FloatArray.set! (lean_float_array_set)"
+  IO.println s!"  scalar @2 := 9.5  = {(fa.set! 2 9.5).data.toList}  (expected [1.5,2.5,9.5,4.5])"
+  IO.println s!"  boxed  @2 := 9.5  = {(fa.set! (boxed 2) 9.5).data.toList}  (expected [1.5,2.5,9.5,4.5])"
+
+  section_ "Array.swapIfInBounds (lean_array_swap)"
+  let arr : Array Nat := #[10, 20, 30, 40]
+  IO.println s!"  scalar swap(0,2)  = {(arr.swapIfInBounds 0 2).toList}  (expected [30,20,10,40])"
+  IO.println s!"  boxed  swap(b0,b2)= {(arr.swapIfInBounds (boxed 0) (boxed 2)).toList}  (expected [30,20,10,40])"
+
 def main : IO Unit := do
   testExtract
+  testIndexPositionCluster

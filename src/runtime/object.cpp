@@ -1351,10 +1351,21 @@ extern "C" LEAN_EXPORT object * lean_big_uint64_to_nat(uint64_t n) {
 }
 
 extern "C" LEAN_EXPORT object * lean_nat_big_succ(object * a) {
+    /* SLEAN-AUDIT: uses mpz_to_nat_core (no canonicalisation); a small
+     * non-scalar input propagates into a small non-scalar output that
+     * later feeds other lean_nat_* sites wrongly.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     return mpz_to_nat_core(mpz_value(a) + 1);
 }
 
 extern "C" LEAN_EXPORT object * lean_nat_big_add(object * a1, object * a2) {
+    /* SLEAN-AUDIT: mixed-scalar branches below use mpz_to_nat_core
+     * (no canonicalisation) unlike sibling big ops such as big_mul
+     * that use mpz_to_nat. A scalar-plus-small-non-scalar is computed
+     * with the correct value but returned in the non-scalar
+     * representation, which then makes downstream big_eq / big_le /
+     * big_lt / big_sub / big_div / big_mod behave wrongly.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     lean_assert(!lean_is_scalar(a1) || !lean_is_scalar(a2));
     if (lean_is_scalar(a1))
         return mpz_to_nat_core(mpz::of_size_t(lean_unbox(a1)) + mpz_value(a2));
@@ -1365,6 +1376,11 @@ extern "C" LEAN_EXPORT object * lean_nat_big_add(object * a1, object * a2) {
 }
 
 extern "C" LEAN_EXPORT object * lean_nat_big_sub(object * a1, object * a2) {
+    /* SLEAN-AUDIT: `a1 scalar, a2 non-scalar` branch short-circuits to
+     * lean_box(0) on the assumption a1 < a2 (the inner lean_assert).
+     * Under invariant violation (non-scalar a2 with small value)
+     * returns 0 instead of a1 - a2. MWE: 5 - boxed(3) = 0.
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     lean_assert(!lean_is_scalar(a1) || !lean_is_scalar(a2));
     if (lean_is_scalar(a1)) {
         lean_assert(mpz::of_size_t(lean_unbox(a1)) < mpz_value(a2));
@@ -1395,6 +1411,10 @@ extern "C" LEAN_EXPORT object * lean_nat_overflow_mul(size_t a1, size_t a2) {
 }
 
 extern "C" LEAN_EXPORT object * lean_nat_big_div(object * a1, object * a2) {
+    /* SLEAN-AUDIT: `a1 scalar, a2 non-scalar` branch short-circuits to
+     * lean_box(0) on the assumption a1 / a2 == 0 (the inner asserts).
+     * MWE: 5 / boxed(3) = 0 (correct: 1).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     lean_assert(!lean_is_scalar(a1) || !lean_is_scalar(a2));
     if (lean_is_scalar(a1)) {
         lean_assert(mpz_value(a2) != 0);
@@ -1410,6 +1430,12 @@ extern "C" LEAN_EXPORT object * lean_nat_big_div(object * a1, object * a2) {
 }
 
 extern "C" LEAN_EXPORT object * lean_nat_big_div_exact(object * a1, object * a2) {
+    /* SLEAN-AUDIT: `a1 scalar, a2 non-scalar` branch short-circuits to
+     * lean_box(0) on the assumption a1 == 0 (the inner lean_assert).
+     * Under invariant violation with a1 != 0 and non-scalar a2 with
+     * small value, returns 0 instead of the actual quotient.
+     * See slean/repros/is_scalar-invariant for a reproducer pattern
+     * (same shape as big_div). */
     lean_assert(!lean_is_scalar(a1) || !lean_is_scalar(a2));
     if (lean_is_scalar(a1)) {
         lean_assert(a1 == lean_box(0));
@@ -1426,6 +1452,12 @@ extern "C" LEAN_EXPORT object * lean_nat_big_div_exact(object * a1, object * a2)
 }
 
 extern "C" LEAN_EXPORT object * lean_nat_big_mod(object * a1, object * a2) {
+    /* SLEAN-AUDIT: `a1 scalar, a2 non-scalar` branch short-circuits to
+     * returning a1 (under the invariant a1 < a2 so a1 % a2 == a1).
+     * Unlike the other branches, there is no value-assert inside the
+     * short-circuit -- silent even in debug builds.
+     * MWE: 5 % boxed(3) = 5 (correct: 2).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     lean_assert(!lean_is_scalar(a1) || !lean_is_scalar(a2));
     if (lean_is_scalar(a1)) {
         lean_assert(mpz_value(a2) != 0);
@@ -1444,6 +1476,15 @@ extern "C" LEAN_EXPORT object * lean_nat_big_mod(object * a1, object * a2) {
     }
 }
 
+/* SLEAN-AUDIT: lean_nat_big_eq / _le / _lt below each short-circuit
+ * the mixed scalar/non-scalar branches to a constant (false, true,
+ * or false) and assert the branch is correct under the invariant.
+ * The asserts fire in debug; in release the shortcuts are only
+ * correct if "non-scalar value > LEAN_MAX_SMALL_NAT" holds. Under
+ * invariant violation:
+ *   MWE: 5 = boxed(5) returns false (correct: true)
+ *   MWE: 5 < boxed(5) returns true  (correct: false)
+ * See slean/repros/is_scalar-invariant for a reproducer. */
 extern "C" LEAN_EXPORT bool lean_nat_big_eq(object * a1, object * a2) {
     if (lean_is_scalar(a1)) {
         lean_assert(mpz::of_size_t(lean_unbox(a1)) != mpz_value(a2));
@@ -1527,6 +1568,10 @@ extern "C" LEAN_EXPORT lean_obj_res lean_nat_shiftl(b_lean_obj_arg a1, b_lean_ob
 }
 
 extern "C" LEAN_EXPORT lean_obj_res lean_nat_big_shiftr(b_lean_obj_arg a1, b_lean_obj_arg a2) {
+    /* SLEAN-AUDIT: non-scalar shift amount is short-circuited to 0
+     * without inspecting `a1` or the assumed shift. Silent in debug
+     * and release. MWE: (2^40) >>> boxed(5) = 0 (correct: 2^35).
+     * See slean/repros/is_scalar-invariant for a reproducer. */
     if (!lean_is_scalar(a2)) {
         return lean_box(0); // This large of an exponent must be 0.
     }

@@ -86,6 +86,45 @@ def testIndexPositionCluster : IO Unit := do
   IO.println s!"  scalar swap(0,2)  = {(arr.swapIfInBounds 0 2).toList}  (expected [30,20,10,40])"
   IO.println s!"  boxed  swap(b0,b2)= {(arr.swapIfInBounds (boxed 0) (boxed 2)).toList}  (expected [30,20,10,40])"
 
+-- Class C/D/E: Nat arithmetic primitives whose mixed scalar/non-scalar
+-- branches short-circuit based on the scalar/non-scalar classification
+-- alone, and assume small-⇒-scalar. Under invariant violation these
+-- either return wrong answers (sub/div/div_exact/mod/eq/le/lt/shiftr)
+-- or produce non-canonical results (add/succ) that break downstream
+-- comparisons.
+def testNatArithCluster : IO Unit := do
+  let a : Nat := 5
+  let b : Nat := boxed 3
+
+  section_ "lean_nat_big_add (propagates non-canonical representation)"
+  let r := a + b
+  IO.println s!"  value of 5 + boxed(3)  = {r}  (expected 8)"
+  IO.println s!"  decide (r = 8)         = {decide (r = 8)}  (expected true; wrong because r is mpz-boxed of value 8)"
+
+  section_ "lean_nat_big_sub (scalar - non-scalar short-circuits to 0)"
+  IO.println s!"  5 - boxed(3)           = {a - b}  (expected 2)"
+
+  section_ "lean_nat_big_div (scalar / non-scalar short-circuits to 0)"
+  IO.println s!"  5 / boxed(3)           = {a / b}  (expected 1)"
+
+  section_ "lean_nat_big_mod (scalar % non-scalar short-circuits to a1)"
+  IO.println s!"  5 %%% boxed(3)         = {a % b}  (expected 2)"
+
+  section_ "lean_nat_big_eq (mixed scalar/non-scalar short-circuits to false)"
+  IO.println s!"  5 = boxed(5)           = {decide ((5 : Nat) = boxed 5)}  (expected true)"
+
+  section_ "lean_nat_big_lt (mixed scalar/non-scalar short-circuits by classification)"
+  IO.println s!"  5 < boxed(5)           = {decide ((5 : Nat) < boxed 5)}  (expected false)"
+
+  section_ "lean_nat_big_le (mixed scalar/non-scalar short-circuits by classification)"
+  IO.println s!"  5 <= boxed(4)          = {decide ((5 : Nat) <= boxed 4)}  (expected false)"
+
+  section_ "lean_nat_big_shiftr (non-scalar shift amount short-circuits to 0)"
+  let big : Nat := 2^40
+  let sm  : Nat := boxed 5
+  IO.println s!"  (2^40) >>> boxed(5)    = {big >>> sm}  (expected 2^35 = 34359738368)"
+
 def main : IO Unit := do
   testExtract
   testIndexPositionCluster
+  testNatArithCluster

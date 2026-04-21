@@ -2333,6 +2333,13 @@ extern "C" LEAN_EXPORT uint8 lean_string_is_valid_pos(b_obj_arg s, b_obj_arg i0)
 }
 
 extern "C" LEAN_EXPORT obj_res lean_string_utf8_extract(b_obj_arg s, b_obj_arg b0, b_obj_arg e0) {
+    /* SLEAN-AUDIT: A class issue. MWE from pure Lean:
+     *   let s := "L∃∀N"
+     *   String.Pos.Raw.extract s ⟨2^63⟩ ⟨2^63 + 1⟩   -- returns "L∃∀N"
+     *   String.Pos.Raw.extract s ⟨100⟩  ⟨200⟩        -- returns ""
+     * Both calls are out of bounds; reference says "" for both. The
+     * non-scalar branch below returns s, disagreeing with its own
+     * scalar-OOB path. */
     if (!lean_is_scalar(b0) || !lean_is_scalar(e0)) {
         /* See comment at string_utf8_get */
         return s;

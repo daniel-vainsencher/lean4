@@ -17,6 +17,15 @@ def section_ (name : String) : IO Unit := do
   IO.println ""
   IO.println s!"=== {name} ==="
 
+-- Class A: lean_string_utf8_extract non-scalar branch returns `s`
+-- while the scalar OOB branch returns "". Reference semantics: OOB
+-- extract returns "". `2^63` is automatically mpz-boxed (no FFI
+-- needed) because it exceeds `LEAN_MAX_SMALL_NAT` on 64-bit.
+def testExtract : IO Unit := do
+  section_ "String.Pos.Raw.extract (lean_string_utf8_extract)"
+  let s := "L∃∀N"
+  IO.println s!"  extract s ⟨100⟩  ⟨200⟩        = {repr (String.Pos.Raw.extract s ⟨100⟩ ⟨200⟩)}  (scalar OOB; reference: \"\")"
+  IO.println s!"  extract s ⟨2^63⟩ ⟨2^63 + 1⟩   = {repr (String.Pos.Raw.extract s ⟨2^63⟩ ⟨2^63 + 1⟩)}  (non-scalar OOB; reference: \"\")"
+
 def main : IO Unit := do
-  -- Per-finding sections are added in their own commits.
-  return ()
+  testExtract
